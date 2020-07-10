@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import pandas as pd
-from pYOLO import cuhk03_dataset
+#from pYOLO import cuhk03_dataset
 # this script has functions for to buiding SiamIDL Network
 
 FLAGS = tf.flags.FLAGS
@@ -30,9 +30,9 @@ def sortFirst(val):
     return val[0]
 
 class personReIdentifier(object):
-    def __init__(self):
+    def __init__(self, batch_size=1):
         #batch size = 1, solo para TESTS
-        self.batch_size = 1
+        self.batch_size = batch_size
         self.learning_rate = tf.placeholder(tf.float32, name='learning_rate')
         self.images = tf.placeholder(tf.float32, [2, self.batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, 3], name='images')
         self.labels = tf.placeholder(tf.float32, [self.batch_size, 2], name='labels')
@@ -58,6 +58,66 @@ class personReIdentifier(object):
         if self.ckpt and self.ckpt.model_checkpoint_path:
             print('==================================Restore model==================================')
             self.saver.restore(self.sess, self.ckpt.model_checkpoint_path)
+    
+    def predict(self, image1, image2):
+        
+        #print("===============================Show Images==================================================")
+        
+        #start = time.time()
+
+        #print('shape img2 despues: ', np.shape(image2))
+        #print('',)
+
+        test_images = np.array([image1, image2])
+        #test_images2 = np.array([image2, image1])
+        
+        feed_dict = {self.images: test_images, self.is_train: False}
+        #feed_dict2 = {self.images: test_images2, self.is_train: False}
+        
+        #print(feed_dict)
+        
+        prediction = self.sess.run(self.inference, feed_dict=feed_dict)
+        #prediction2 = self.sess.run(self.inference, feed_dict=feed_dict2)
+        
+        #print("=======================Prediction1=======================")
+        #print('prediction: ',prediction)
+        #print(bool(not np.argmax(prediction[0])))
+
+        #end = time.time()
+        #print("Time in seconds: ")
+        #print(end - start)
+        return prediction[:,0]
+        
+    def predict_old(self, query_path, image_path):
+        image1 = cv2.imread(query_path)
+        image1 = cv2.resize(image1, (IMAGE_WIDTH, IMAGE_HEIGHT))
+        image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2RGB)
+        
+        image2 = cv2.imread(image_path)
+        image2 = cv2.resize(image2, (IMAGE_WIDTH, IMAGE_HEIGHT))
+        image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2RGB)
+        start = time.time()
+
+        image1 = np.reshape(image1, (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)).astype(float)
+        image2 = np.reshape(image2, (1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)).astype(float)
+        
+        test_images = np.array([image1, image2])
+        
+        feed_dict = {self.images: test_images, self.is_train: False}
+        #print(feed_dict)
+        
+        prediction = self.sess.run(self.inference, feed_dict=feed_dict)
+        #prediction2 = sess.run(self.inference, feed_dict=feed_dict2)
+        
+        print("=======================Prediction1=======================")
+        print(prediction)
+        print(bool(not np.argmax(prediction[0])))
+        #print(prediction[0])
+        
+        end = time.time()
+        print("Time in seconds: ")
+        print(end - start)
+        return prediction[:,0]
     
     #Improved Deep learning architectura person-ReID
     def PersonReIdentification(self, query_path, cropps_path, out_reid_path, topN, show_query = False):

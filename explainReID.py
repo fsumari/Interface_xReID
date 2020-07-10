@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from skimage.transform import resize
 from tqdm import tqdm
-from pReID.personReID import personReIdentifier
+from pReID.personReID2 import personReIdentifier
 import cv2
 
 
@@ -38,11 +38,11 @@ def generate_masks(model, N, sf, sc, p1, progressMasks):
     print('shape masks: ',np.shape(masks))
     return masks
 
-def load_img(model, path):
+def load_img(h, w, path):
     image1 = cv2.imread(path)
-    image1 = cv2.resize(image1, (model.input_size[1], model.input_size[0]))
+    image1 = cv2.resize(image1, (h, w))
     image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2RGB)
-    x = np.reshape(image1, (1, model.input_size[0], model.input_size[1], 3)).astype(float)
+    x = np.reshape(image1, (1, w, h , 3)).astype(float)
     return image1, x
 
 N = 2000

@@ -21,14 +21,16 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+#from pReID.personReID2 import personReIdentifier
 
-batch_size = 100
+batch_size = 250
 #model_batch = ReID_Model(batch_size)
 #model_batch = ReID_Model(1)
+#reid = personReIdentifier()
 
 class MplCanvas(FigureCanvasQTAgg):
 
-    def __init__(self, parent=None, width=9, height=9, dpi=100):
+    def __init__(self, parent=None, width=10, height=10, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         #fig = plt.figure(figsize=(12,12))
         #self.axes = fig.add_subplot(111)
@@ -40,10 +42,11 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
         #variavels para a explicação
-        self.model_batch = ReID_Model(1)
+        self.model_batch = ReID_Model(batch_size)
         self.pathQuery = None
         self.pathGallery = None
         self.saliency_result = []
+        self.layout = QtWidgets.QVBoxLayout()
         #progress bar
         #self.progressBar.setAutoFillBackground
         self.progressBarMasks.setValue(0)
@@ -86,33 +89,45 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.pathGallery = fileName
     
     def explain_with_Rise(self):
+        #clear_layout = QtWidgets.QVBoxLayout()
+        #self.widgetResult.setLayout(clear_layout)
+        #print('layout: ', self.layout.count())
+        #if (self.layout.count() == 1):
+        #    self.layout.takeAt(self.layout.count()-1).
+        
+        self.waitLabel.setText('please, wait . . .')
+        self.saliency_result = []
+        self.progressBarMasks.setValue(0)
+        self.progressBarExplain.setValue(0)
 
-        query, x_query = xreid.load_img(self.model_batch , self.pathQuery)
+        query, x_query = xreid.load_img(60, 160 , self.pathQuery)
         #******** preprocesando os dados *********
         files = sorted(glob.glob( self.pathGallery + '/*.png'))
         #x_gallery = []
         #self.saliency_result = []
 
-        #x_q = np.repeat(x_query, batch_size, axis=0)
+        x_q = np.repeat(x_query, batch_size, axis=0)
 
         for file in files[:20]:
-            img, x = xreid.load_img(self.model_batch, file)
-            #x = np.repeat(x, batch_size, axis=0)
-            predict = self.model_batch.run_on_batch(x_query, x)
+            img, x = xreid.load_img(60, 160, file)
+            x = np.repeat(x, batch_size, axis=0)
             
+            predict = self.model_batch.run_on_batch(x_q, x)
+            #predict_old = reid.predict_old(self.pathQuery, file)
             path_f, name_f = os.path.split(file)
             name = name_f.rsplit('.')
             #print(name)
             self.saliency_result.append([predict[0], img, x[0], None, name[0]])
+            #self.saliency_result.append([predict_old[0], img, x[0], None, name[0]])
             print('predict ',predict[0])
         print(np.shape(self.saliency_result))
         # ****** resize batch on model *****
-        self.model_batch = None
+        #self.model_batch = None
         
-        tf.compat.v1.reset_default_graph()
+        #tf.compat.v1.reset_default_graph()
 
-        self.model_batch = ReID_Model(batch_size)
-        # ***** generate masks RISE ******
+        #self.model_batch = ReID_Model(batch_size)
+        # ***** generate masks RISE ****** 
         sf, sc = 6, 4
         masks = xreid.generate_masks(self.model_batch, 2000, sf, sc, 0.5, self.progressBarMasks)
         #****** explicação do ReID  ***********
@@ -135,8 +150,8 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         print('sort: ', self.saliency_result[:, [0,4] ])
         #***** show results TOP 6 ****
         #f = plt.figure(figsize=(9,6))
-        sc = MplCanvas(self, width=10, height=10, dpi=100)
-        top = 6
+        canvas_plt = MplCanvas(self, width=16, height=16, dpi=100)
+        top = 20
         k = 0
         #***
         #while count < TIME_LIMIT:
@@ -144,33 +159,38 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         #    time.sleep(1)
         #    self.progress.setValue(count)
         for i in range(1, top+1):
-            ax =  sc.fig.add_subplot(2,top, i)
+            ax =  canvas_plt.fig.add_subplot(2,top, i)
             #plt.title('Explanation for `{}`'.format('ReID'))#class_name(class_idx)))
-            ax.title.set_text(self.saliency_result[k][4])
+            ax.title.set_text( "{0:.0f}%".format(self.saliency_result[k][0] * 100) )
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
             ax.imshow(self.saliency_result[k][1])
             #im = ax.imshow(self.saliency_result[k][3], cmap='jet', alpha=0.5)
-            #sc.fig.colorbar(im, ax=ax)
+            #canvas_plt.fig.colorbar(im, ax=ax)
             #******************
-            ax2 =  sc.fig.add_subplot(2,top, top + i)
+            ax2 =  canvas_plt.fig.add_subplot(2,top, top + i)
             #plt.title('Explanation for `{}`'.format('ReID'))#class_name(class_idx)))
-            ax2.title.set_text(self.saliency_result[k][4])
+            ax2.title.set_text("{0:.0f}%".format(self.saliency_result[k][0] * 100))
             ax2.get_xaxis().set_visible(False)
             ax2.get_yaxis().set_visible(False)
             ax2.imshow(self.saliency_result[k][1])
             im = ax2.imshow(self.saliency_result[k][3], cmap='jet', alpha=0.4)
-            sc.fig.colorbar(im, ax=ax2)
+            #canvas_plt.fig.colorbar(im, ax=ax2)
             
             k += 1
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
-        toolbar = NavigationToolbar(sc, self)
+        toolbar = NavigationToolbar(canvas_plt, self)
 
-        layout = QtWidgets.QVBoxLayout()
+        #layout = QtWidgets.QVBoxLayout()
         #layout.addWidget(toolbar)
-        layout.addWidget(sc)
-
-        self.widgetResult.setLayout(layout)
+        #self.layout.deleteLater()
+        if (self.layout.count() == 1):
+            sz = self.layout.count() - 1
+            self.layout.removeWidget(self.layout.takeAt(sz).widget())
+        # removeItem() 
+        self.layout.addWidget(canvas_plt)
+        self.waitLabel.setText(' ')
+        self.widgetResult.setLayout(self.layout)
     '''
         f.add_subplot(1,3, 1)
         plt.title('Query')#class_name(class_idx)))
